@@ -45,11 +45,23 @@ function lcm(arr) {
 
 // ---------------- Routes ----------------
 
+// Root route (browser test)
+app.get("/", (req, res) => {
+  res.send("BFHL API is running");
+});
+
 // GET /health
 app.get("/health", (req, res) => {
   res.status(200).json({
     is_success: true,
     official_email: EMAIL
+  });
+});
+
+// GET /bfhl (for browser testing)
+app.get("/bfhl", (req, res) => {
+  res.json({
+    message: "BFHL endpoint is working. Use POST request with JSON body."
   });
 });
 
@@ -70,11 +82,10 @@ app.post("/bfhl", async (req, res) => {
 
     // Fibonacci
     if (body.fibonacci !== undefined) {
-      const n = body.fibonacci;
       return res.status(200).json({
         is_success: true,
         official_email: EMAIL,
-        data: fibonacci(n)
+        data: fibonacci(body.fibonacci)
       });
     }
 
@@ -108,51 +119,47 @@ app.post("/bfhl", async (req, res) => {
 
     // AI
     if (body.AI !== undefined) {
-  const question = body.AI;
+      const question = body.AI;
 
-  try {
-    const response = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.AI_API_KEY}`,
-      {
-        contents: [
+      try {
+        const response = await axios.post(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.AI_API_KEY}`,
           {
-            parts: [
+            contents: [
               {
-                text: `Answer in one word only: ${question}`
+                parts: [
+                  {
+                    text: `Answer in one word only: ${question}`
+                  }
+                ]
               }
             ]
           }
-        ]
+        );
+
+        const aiText =
+          response.data.candidates?.[0]?.content?.parts?.[0]?.text || "Unknown";
+
+        const singleWord = aiText.split(" ")[0];
+
+        return res.status(200).json({
+          is_success: true,
+          official_email: EMAIL,
+          data: singleWord
+        });
+
+      } catch (err) {
+        console.log("AI ERROR:", err.response?.data || err.message);
+
+        const fallback = question.split(" ").pop().replace("?", "");
+
+        return res.status(200).json({
+          is_success: true,
+          official_email: EMAIL,
+          data: fallback
+        });
       }
-    );
-
-    const aiText =
-      response.data.candidates?.[0]?.content?.parts?.[0]?.text || "Unknown";
-
-    const singleWord = aiText.split(" ")[0];
-
-    return res.status(200).json({
-      is_success: true,
-      official_email: EMAIL,
-      data: singleWord
-    });
-
-  } catch (err) {
-    console.log("AI ERROR:", err.response?.data || err.message);
-
-    // fallback
-    const fallback = question.split(" ").pop().replace("?", "");
-
-    return res.status(200).json({
-      is_success: true,
-      official_email: EMAIL,
-      data: fallback
-    });
-  }
-}
-
-
-
+    }
 
   } catch (err) {
     return res.status(500).json({
