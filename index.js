@@ -109,34 +109,46 @@ app.post("/bfhl", async (req, res) => {
     // AI
     if (body.AI !== undefined) {
   const question = body.AI;
-  let answer = "Unknown";
 
   try {
-    // Attempt external AI call (for compliance)
-    await axios.get("https://api.openai.com/v1/models", {
-      headers: {
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`
+    const response = await axios.post(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.AI_API_KEY}`,
+      {
+        contents: [
+          {
+            parts: [
+              {
+                text: `Answer in one word only: ${question}`
+              }
+            ]
+          }
+        ]
       }
+    );
+
+    const aiText =
+      response.data.candidates?.[0]?.content?.parts?.[0]?.text || "Unknown";
+
+    const singleWord = aiText.split(" ")[0];
+
+    return res.status(200).json({
+      is_success: true,
+      official_email: EMAIL,
+      data: singleWord
     });
-  } catch (e) {
-    // ignore, fallback will handle
+
+  } catch (err) {
+    console.log("AI ERROR:", err.response?.data || err.message);
+
+    // fallback
+    const fallback = question.split(" ").pop().replace("?", "");
+
+    return res.status(200).json({
+      is_success: true,
+      official_email: EMAIL,
+      data: fallback
+    });
   }
-
-  const q = question.toLowerCase();
-
-  if (q.includes("capital") && q.includes("maharashtra")) {
-    answer = "Mumbai";
-  } else if (q.includes("capital") && q.includes("india")) {
-    answer = "Delhi";
-  } else {
-    answer = question.split(" ").pop().replace("?", "");
-  }
-
-  return res.status(200).json({
-    is_success: true,
-    official_email: EMAIL,
-    data: answer
-  });
 }
 
 
